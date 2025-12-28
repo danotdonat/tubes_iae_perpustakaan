@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\MemberController;
+use App\Http\Controllers\Api\BorrowController;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,4 +36,9 @@ Route::middleware('auth:api')->group(function () {
             'user' => $request->user() // Ubah auth()->user() menjadi $request->user()
         ]);
     });
+
+    Route::post('/borrows', [BorrowController::class, 'store']);
+    Route::put('/borrows/{id}/return', [BorrowController::class, 'returnBook']);
+    Route::delete('/borrows/{id}', [BorrowController::class, 'destroy']);
+    Route::get('/borrows', [BorrowController::class, 'index']);
 });
