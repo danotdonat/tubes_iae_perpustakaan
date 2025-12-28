@@ -4,14 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Borrow extends Model
 {
     use HasFactory;
 
     /**
+     * Nama tabel yang terkait dengan model.
+     * @var string
+     */
+    protected $table = 'borrows';
+
+    /**
      * Kolom yang diizinkan untuk diisi secara massal (Mass Assignment).
-     * Sesuai dengan struktur tabel peminjaman di database.
+     * @var array<int, string>
      */
     protected $fillable = [
         'member_id',
@@ -22,19 +29,31 @@ class Borrow extends Model
     ];
 
     /**
-     * Relasi ke Model Member (Anggota).
-     * Menandakan bahwa satu data pinjam dimiliki oleh satu anggota.
+     * Casting tipe data kolom.
+     * Sangat penting agar borrow_date otomatis menjadi objek Carbon.
+     * @var array<string, string>
      */
-    public function member()
+    protected $casts = [
+        'borrow_date' => 'datetime',
+        'return_date' => 'datetime',
+        'member_id'   => 'integer',
+        'book_id'     => 'integer',
+    ];
+
+    /**
+     * Relasi ke Model Member (Anggota).
+     * @return BelongsTo
+     */
+    public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
     }
 
     /**
      * Relasi ke Model Book (Buku).
-     * Menandakan bahwa satu data pinjam merujuk pada satu buku.
+     * @return BelongsTo
      */
-    public function book()
+    public function book(): BelongsTo
     {
         return $this->belongsTo(Book::class);
     }
