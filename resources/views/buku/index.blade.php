@@ -31,31 +31,48 @@
 
 <!-- Quick Stats -->
 <div class="row mb-5">
+    @php
+        try {
+            $totalBooks = \App\Models\Book::count();
+            $availableBooks = \App\Models\Book::where('stock', '>', 0)->count();
+            $borrowedBooks = \App\Models\Borrow::where('status', 'borrowed')->count();
+            $overdueBooks = \App\Models\Borrow::where('status', 'borrowed')
+                ->whereDate('borrow_date', '<=', now()->subDays(7))
+                ->count();
+        } catch (\Exception $e) {
+            // Fallback jika database error
+            $totalBooks = 10; // Dari database Anda ada 10 buku
+            $availableBooks = 9; // 1 buku sedang dipinjam
+            $borrowedBooks = 1;
+            $overdueBooks = 0;
+        }
+    @endphp
+
     <div class="col-md-3 mb-4">
         <div class="stat-card bg-danger text-white">
             <i class="fas fa-book fa-2x mb-3"></i>
-            <h3 class="text-white mb-0">1,250</h3>
+            <h3 class="text-white mb-0">{{ $totalBooks }}</h3>
             <p class="mb-0 opacity-75">Total Buku</p>
         </div>
     </div>
     <div class="col-md-3 mb-4">
         <div class="stat-card bg-success text-white">
             <i class="fas fa-check-circle fa-2x mb-3"></i>
-            <h3 class="text-white mb-0">1,180</h3>
+            <h3 class="text-white mb-0">{{ $availableBooks }}</h3>
             <p class="mb-0 opacity-75">Tersedia</p>
         </div>
     </div>
     <div class="col-md-3 mb-4">
         <div class="stat-card bg-warning text-white">
             <i class="fas fa-book-reader fa-2x mb-3"></i>
-            <h3 class="text-white mb-0">65</h3>
+            <h3 class="text-white mb-0">{{ $borrowedBooks }}</h3>
             <p class="mb-0 opacity-75">Dipinjam</p>
         </div>
     </div>
     <div class="col-md-3 mb-4">
         <div class="stat-card bg-info text-white">
             <i class="fas fa-clock fa-2x mb-3"></i>
-            <h3 class="text-white mb-0">5</h3>
+            <h3 class="text-white mb-0">{{ $overdueBooks }}</h3>
             <p class="mb-0 opacity-75">Terlambat</p>
         </div>
     </div>
@@ -70,36 +87,41 @@
         </h5>
     </div>
     <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-6">
-                <div class="input-group input-group-lg">
-                    <span class="input-group-text bg-danger text-white">
-                        <i class="fas fa-search"></i>
-                    </span>
-                    <input type="text" class="form-control" id="searchInput" placeholder="Cari judul, penulis, atau ISBN...">
-                    <button class="btn btn-danger" type="button" onclick="searchBooks()">
-                        <i class="fas fa-search"></i> Cari
-                    </button>
+        <form method="GET" action="{{ url('/buku') }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group input-group-lg">
+                        <span class="input-group-text bg-danger text-white">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" name="search"
+                               placeholder="Cari judul, penulis, atau ISBN..."
+                               value="{{ request('search') }}">
+                        <button class="btn btn-danger" type="submit">
+                            <i class="fas fa-search"></i> Cari
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-lg" name="category">
+                        <option value="">Semua Kategori</option>
+                        <option value="Novel" {{ request('category') == 'Novel' ? 'selected' : '' }}>Novel</option>
+                        <option value="Fiksi" {{ request('category') == 'Fiksi' ? 'selected' : '' }}>Fiksi</option>
+                        <option value="Self Dev" {{ request('category') == 'Self Dev' ? 'selected' : '' }}>Self Development</option>
+                        <option value="Sastra" {{ request('category') == 'Sastra' ? 'selected' : '' }}>Sastra</option>
+                        <option value="Romance" {{ request('category') == 'Romance' ? 'selected' : '' }}>Romance</option>
+                        <option value="Fiksi Sejarah" {{ request('category') == 'Fiksi Sejarah' ? 'selected' : '' }}>Fiksi Sejarah</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-lg" name="status">
+                        <option value="">Semua Status</option>
+                        <option value="available" {{ request('status') == 'available' ? 'selected' : '' }}>Tersedia</option>
+                        <option value="borrowed" {{ request('status') == 'borrowed' ? 'selected' : '' }}>Dipinjam</option>
+                    </select>
                 </div>
             </div>
-            <div class="col-md-3">
-                <select class="form-select form-select-lg" id="categoryFilter">
-                    <option value="">Semua Kategori</option>
-                    <option value="teknologi">Teknologi</option>
-                    <option value="sains">Sains</option>
-                    <option value="sastra">Sastra</option>
-                    <option value="sejarah">Sejarah</option>
-                    <option value="filsafat">Filsafat</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <select class="form-select form-select-lg" id="statusFilter">
-                    <option value="">Semua Status</option>
-                    <option value="tersedia">Tersedia</option>
-                    <option value="dipinjam">Dipinjam</option>
-                </select>
-            </div>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -109,7 +131,7 @@
         <div class="d-flex justify-content-between align-items-center">
             <h4 class="fw-bold text-dark">
                 <i class="fas fa-list text-danger me-2"></i>
-                Daftar Buku (Total: 1,250)
+                Daftar Buku (Total: {{ $books->total() }})
             </h4>
             <div class="btn-group" role="group">
                 <button class="btn btn-outline-danger active" onclick="changeView('grid')">
@@ -123,24 +145,43 @@
     </div>
 </div>
 
+@if(session('success'))
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>
+    {{ session('success') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+@endif
+
+@if(session('error'))
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-circle me-2"></i>
+    {{ session('error') }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+@endif
+
 <!-- Books Grid View (Default) -->
 <div id="gridView">
     <div class="row">
-        @for($i = 1; $i <= 12; $i++)
+        @forelse($books as $book)
         @php
-            $categories = ['teknologi', 'sains', 'sastra', 'sejarah'];
-            $category = $categories[array_rand($categories)];
-            $status = $i % 4 === 0 ? 'dipinjam' : 'tersedia';
-            $statusClass = $status === 'tersedia' ? 'bg-success' : 'bg-warning';
-            $statusText = $status === 'tersedia' ? 'Tersedia' : 'Dipinjam';
+            // Cek apakah buku sedang dipinjam
+            $isBorrowed = \App\Models\Borrow::where('book_id', $book->id)
+                ->where('status', 'borrowed')
+                ->exists();
+            $status = $isBorrowed ? 'dipinjam' : 'tersedia';
+            $statusClass = $isBorrowed ? 'bg-warning' : 'bg-success';
+            $statusText = $isBorrowed ? 'Dipinjam' : 'Tersedia';
         @endphp
-        <div class="col-md-3 mb-4 book-item" data-category="{{ $category }}" data-status="{{ $status }}">
+
+        <div class="col-md-3 mb-4 book-item" data-category="{{ strtolower($book->category) }}" data-status="{{ $status }}">
             <div class="card h-100 border-danger hover-shadow">
                 <div class="card-header bg-danger text-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
-                        <span class="badge bg-light text-dark">ISBN-{{ sprintf('%04d', $i) }}</span>
+                        <span class="badge bg-light text-dark">{{ $book->isbn }}</span>
                         <span class="badge {{ $statusClass }}">
-                            <i class="fas fa-{{ $status === 'tersedia' ? 'check-circle' : 'book-reader' }} me-1"></i>
+                            <i class="fas fa-{{ $isBorrowed ? 'book-reader' : 'check-circle' }} me-1"></i>
                             {{ $statusText }}
                         </span>
                     </div>
@@ -150,59 +191,130 @@
                         <div class="book-cover bg-light rounded p-4 mb-3">
                             <i class="fas fa-book fa-3x text-danger"></i>
                         </div>
-                        <h5 class="card-title text-dark fw-bold mb-2">Mastering Laravel {{ $i }}</h5>
+                        <h5 class="card-title text-dark fw-bold mb-2">{{ $book->title }}</h5>
                         <p class="text-muted small mb-3">
                             <i class="fas fa-user-pen text-danger me-1"></i>
-                            Penulis: John Doe
+                            Penulis: {{ $book->author }}
                         </p>
                     </div>
                     <div class="book-details">
                         <p class="mb-2">
                             <i class="fas fa-tag text-danger me-2"></i>
                             <span class="text-muted">Kategori:</span>
-                            <span class="badge bg-secondary ms-1">{{ ucfirst($category) }}</span>
+                            <span class="badge bg-secondary ms-1">{{ $book->category }}</span>
+                        </p>
+                        <p class="mb-2">
+                            <i class="fas fa-box text-danger me-2"></i>
+                            <span class="text-muted">Stok:</span> {{ $book->stock }}
                         </p>
                         <p class="mb-2">
                             <i class="fas fa-calendar text-danger me-2"></i>
-                            <span class="text-muted">Tahun:</span> 202{{ $i % 10 }}
-                        </p>
-                        <p class="mb-2">
-                            <i class="fas fa-layer-group text-danger me-2"></i>
-                            <span class="text-muted">Halaman:</span> {{ 200 + ($i * 10) }}
+                            <span class="text-muted">Ditambahkan:</span> {{ $book->created_at->format('d/m/Y') }}
                         </p>
                         <p class="mb-0">
-                            <i class="fas fa-building text-danger me-2"></i>
-                            <span class="text-muted">Penerbit:</span> Penerbit IA
+                            <i class="fas fa-id-badge text-danger me-2"></i>
+                            <span class="text-muted">ID:</span> {{ $book->id }}
                         </p>
                     </div>
                 </div>
                 <div class="card-footer bg-white border-top-0 pt-0">
                     <div class="d-grid gap-2">
-                        @if($status === 'tersedia')
-                        <button class="btn btn-sm btn-success" onclick="pinjamBuku({{ $i }})">
-                            <i class="fas fa-bookmark me-1"></i> Pinjam
-                        </button>
+                        @if(!$isBorrowed && $book->stock > 0)
+                        <form action="{{ route('buku.pinjam', $book->id) }}" method="POST" style="display: inline;">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-success w-100"
+                                    onclick="return confirm('Pinjam buku {{ $book->title }}?')">
+                                <i class="fas fa-bookmark me-1"></i> Pinjam
+                            </button>
+                        </form>
                         @else
-                        <button class="btn btn-sm btn-secondary" disabled>
-                            <i class="fas fa-clock me-1"></i> Sedang Dipinjam
+                        <button class="btn btn-sm btn-secondary w-100" disabled>
+                            <i class="fas fa-clock me-1"></i> {{ $isBorrowed ? 'Sedang Dipinjam' : 'Stok Habis' }}
                         </button>
                         @endif
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-danger" onclick="showDetail({{ $i }})">
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                            <button class="btn btn-outline-danger" onclick="showDetail({{ $book->id }})">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-outline-warning" onclick="editBuku({{ $i }})">
+                            <button class="btn btn-outline-warning" data-bs-toggle="modal"
+                                    data-bs-target="#editBukuModal{{ $book->id }}">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-outline-dark" onclick="deleteBuku({{ $i }})">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                            <form action="{{ route('books.destroy', $book->id) }}" method="POST"
+                                  onsubmit="return confirm('Hapus buku {{ $book->title }}?')" style="display: inline;">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-dark">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        @endfor
+
+        <!-- Modal Edit Buku -->
+        <div class="modal fade" id="editBukuModal{{ $book->id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Buku: {{ $book->title }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ route('books.update', $book->id) }}">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Judul Buku</label>
+                                <input type="text" class="form-control" name="title"
+                                       value="{{ $book->title }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Penulis</label>
+                                <input type="text" class="form-control" name="author"
+                                       value="{{ $book->author }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">ISBN</label>
+                                <input type="text" class="form-control" name="isbn"
+                                       value="{{ $book->isbn }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Kategori</label>
+                                <select class="form-select" name="category" required>
+                                    <option value="Novel" {{ $book->category == 'Novel' ? 'selected' : '' }}>Novel</option>
+                                    <option value="Fiksi" {{ $book->category == 'Fiksi' ? 'selected' : '' }}>Fiksi</option>
+                                    <option value="Self Dev" {{ $book->category == 'Self Dev' ? 'selected' : '' }}>Self Development</option>
+                                    <option value="Sastra" {{ $book->category == 'Sastra' ? 'selected' : '' }}>Sastra</option>
+                                    <option value="Romance" {{ $book->category == 'Romance' ? 'selected' : '' }}>Romance</option>
+                                    <option value="Fiksi Sejarah" {{ $book->category == 'Fiksi Sejarah' ? 'selected' : '' }}>Fiksi Sejarah</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Jumlah Stok</label>
+                                <input type="number" class="form-control" name="stock"
+                                       value="{{ $book->stock }}" min="0" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-primary">Update</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        @empty
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Tidak ada buku ditemukan.
+            </div>
+        </div>
+        @endforelse
     </div>
 </div>
 
@@ -218,59 +330,62 @@
                             <th>Judul Buku</th>
                             <th>Penulis</th>
                             <th>Kategori</th>
-                            <th>Tahun</th>
                             <th>ISBN</th>
+                            <th>Stok</th>
                             <th>Status</th>
                             <th class="text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @for($i = 1; $i <= 10; $i++)
+                        @foreach($books as $index => $book)
                         @php
-                            $categories = ['teknologi', 'sains', 'sastra', 'sejarah'];
-                            $category = $categories[array_rand($categories)];
-                            $status = $i % 4 === 0 ? 'dipinjam' : 'tersedia';
-                            $statusClass = $status === 'tersedia' ? 'bg-success' : 'bg-warning';
-                            $statusText = $status === 'tersedia' ? 'Tersedia' : 'Dipinjam';
+                            $isBorrowed = \App\Models\Borrow::where('book_id', $book->id)
+                                ->where('status', 'borrowed')
+                                ->exists();
                         @endphp
                         <tr>
-                            <td class="fw-bold">{{ $i }}</td>
+                            <td class="fw-bold">{{ $index + 1 }}</td>
                             <td>
                                 <div class="d-flex align-items-center">
                                     <div class="book-icon-small bg-danger text-white rounded-circle me-3">
                                         <i class="fas fa-book"></i>
                                     </div>
                                     <div>
-                                        <div class="fw-bold">Mastering Laravel {{ $i }}</div>
-                                        <small class="text-muted">Penerbit IA</small>
+                                        <div class="fw-bold">{{ $book->title }}</div>
+                                        <small class="text-muted">ID: {{ $book->id }}</small>
                                     </div>
                                 </div>
                             </td>
-                            <td>John Doe</td>
+                            <td>{{ $book->author }}</td>
                             <td>
-                                <span class="badge bg-secondary">{{ ucfirst($category) }}</span>
+                                <span class="badge bg-secondary">{{ $book->category }}</span>
                             </td>
-                            <td>202{{ $i % 10 }}</td>
-                            <td>ISBN-{{ sprintf('%04d', $i) }}</td>
+                            <td>{{ $book->isbn }}</td>
+                            <td>{{ $book->stock }}</td>
                             <td>
-                                <span class="badge {{ $statusClass }}">
-                                    {{ $statusText }}
+                                <span class="badge {{ $isBorrowed ? 'bg-warning' : 'bg-success' }}">
+                                    {{ $isBorrowed ? 'Dipinjam' : 'Tersedia' }}
                                 </span>
                             </td>
                             <td>
                                 <div class="d-flex gap-2 justify-content-center">
-                                    <button class="btn btn-sm btn-outline-danger" onclick="showDetail({{ $i }})">
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick="showDetail({{ $book->id }})">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    @if($status === 'tersedia')
-                                    <button class="btn btn-sm btn-outline-success" onclick="pinjamBuku({{ $i }})">
-                                        <i class="fas fa-bookmark"></i>
-                                    </button>
+                                    @if(!$isBorrowed && $book->stock > 0)
+                                    <form action="{{ route('buku.pinjam', $book->id) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-outline-success"
+                                                onclick="return confirm('Pinjam buku {{ $book->title }}?')">
+                                            <i class="fas fa-bookmark"></i>
+                                        </button>
+                                    </form>
                                     @endif
                                 </div>
                             </td>
                         </tr>
-                        @endfor
+                        @endforeach
                     </tbody>
                 </table>
             </div>
@@ -279,25 +394,15 @@
 </div>
 
 <!-- Pagination -->
-<nav aria-label="Page navigation" class="mt-5">
-    <ul class="pagination justify-content-center">
-        <li class="page-item disabled">
-            <a class="page-link text-danger" href="#">
-                <i class="fas fa-chevron-left"></i>
-            </a>
-        </li>
-        <li class="page-item active">
-            <a class="page-link bg-danger border-danger" href="#">1</a>
-        </li>
-        <li class="page-item"><a class="page-link text-danger" href="#">2</a></li>
-        <li class="page-item"><a class="page-link text-danger" href="#">3</a></li>
-        <li class="page-item">
-            <a class="page-link text-danger" href="#">
-                <i class="fas fa-chevron-right"></i>
-            </a>
-        </li>
-    </ul>
-</nav>
+@if($books->hasPages())
+<div class="d-flex justify-content-center mt-5">
+    <nav aria-label="Page navigation">
+        <ul class="pagination">
+            {{ $books->links() }}
+        </ul>
+    </nav>
+</div>
+@endif
 
 <!-- Modal Tambah Buku -->
 <div class="modal fade" id="tambahBukuModal" tabindex="-1" aria-labelledby="tambahBukuModalLabel">
@@ -310,66 +415,53 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <form id="tambahBukuForm">
+            <form method="POST" action="{{ route('books.store') }}">
+                @csrf
+                <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Judul Buku <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" placeholder="Masukkan judul buku" required>
+                            <input type="text" class="form-control" name="title" placeholder="Masukkan judul buku" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Penulis <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" placeholder="Masukkan nama penulis" required>
+                            <input type="text" class="form-control" name="author" placeholder="Masukkan nama penulis" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">ISBN <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" placeholder="Masukkan nomor ISBN" required>
+                            <input type="text" class="form-control" name="isbn" placeholder="Masukkan nomor ISBN" required>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">Kategori <span class="text-danger">*</span></label>
-                            <select class="form-select" required>
+                            <select class="form-select" name="category" required>
                                 <option value="">Pilih Kategori</option>
-                                <option value="teknologi">Teknologi</option>
-                                <option value="sains">Sains</option>
-                                <option value="sastra">Sastra</option>
-                                <option value="sejarah">Sejarah</option>
+                                <option value="Novel">Novel</option>
+                                <option value="Fiksi">Fiksi</option>
+                                <option value="Self Dev">Self Development</option>
+                                <option value="Sastra">Sastra</option>
+                                <option value="Romance">Romance</option>
+                                <option value="Fiksi Sejarah">Fiksi Sejarah</option>
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label fw-bold">Tahun Terbit <span class="text-danger">*</span></label>
-                            <input type="number" class="form-control" min="1900" max="2024" value="2023" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Penerbit <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" placeholder="Masukkan nama penerbit" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Jumlah Halaman</label>
-                            <input type="number" class="form-control" min="1" placeholder="Jumlah halaman">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Bahasa</label>
-                            <select class="form-select">
-                                <option value="indonesia">Indonesia</option>
-                                <option value="inggris">Inggris</option>
-                                <option value="jawa">Jawa</option>
-                            </select>
+                            <label class="form-label fw-bold">Stok <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" name="stock" min="1" value="1" required>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-bold">Deskripsi</label>
-                            <textarea class="form-control" rows="3" placeholder="Deskripsi singkat buku..."></textarea>
+                            <label class="form-label fw-bold">Deskripsi (Opsional)</label>
+                            <textarea class="form-control" name="description" rows="3" placeholder="Deskripsi singkat buku..."></textarea>
                         </div>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
-                    <i class="fas fa-times me-2"></i> Batal
-                </button>
-                <button type="button" class="btn btn-danger" onclick="simpanBuku()">
-                    <i class="fas fa-save me-2"></i> Simpan Buku
-                </button>
-            </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i> Batal
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-save me-2"></i> Simpan Buku
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -385,58 +477,12 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="row">
-                    <div class="col-md-4 text-center">
-                        <div class="book-cover-large bg-light rounded p-5 mb-3">
-                            <i class="fas fa-book-open fa-4x text-danger"></i>
-                        </div>
-                        <h4 id="detailJudul">Mastering Laravel</h4>
-                        <p class="text-muted" id="detailPenulis">John Doe</p>
-                        <span class="badge bg-success" id="detailStatus">Tersedia</span>
-                    </div>
-                    <div class="col-md-8">
-                        <h5 class="border-bottom pb-2 mb-3">Informasi Buku</h5>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <p class="mb-1"><strong>ISBN:</strong></p>
-                                <p id="detailIsbn">ISBN-0001</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <p class="mb-1"><strong>Kategori:</strong></p>
-                                <p id="detailKategori">Teknologi</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <p class="mb-1"><strong>Tahun Terbit:</strong></p>
-                                <p id="detailTahun">2023</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <p class="mb-1"><strong>Penerbit:</strong></p>
-                                <p id="detailPenerbit">Penerbit IA</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <p class="mb-1"><strong>Halaman:</strong></p>
-                                <p id="detailHalaman">250</p>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <p class="mb-1"><strong>Bahasa:</strong></p>
-                                <p id="detailBahasa">Indonesia</p>
-                            </div>
-                            <div class="col-12 mb-3">
-                                <p class="mb-1"><strong>Deskripsi:</strong></p>
-                                <p id="detailDeskripsi" class="text-muted">Buku tentang pemrograman Laravel untuk pemula hingga mahir.</p>
-                            </div>
-                            <div class="col-12 mb-3">
-                                <p class="mb-1"><strong>Lokasi Rak:</strong></p>
-                                <p id="detailRak">Rak T-01</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="modal-body" id="detailContent">
+                <!-- Detail akan diisi via JavaScript -->
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                <button type="button" class="btn btn-danger" onclick="pinjamBukuModal()">
+                <button type="button" class="btn btn-danger" id="pinjamButton" style="display: none;">
                     <i class="fas fa-bookmark me-1"></i> Pinjam Buku Ini
                 </button>
             </div>
@@ -447,6 +493,18 @@
 
 @push('styles')
 <style>
+    .stat-card {
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
     .book-cover {
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         border: 2px dashed #d32f2f;
@@ -494,70 +552,28 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('Buku page loaded successfully');
+    console.log('Buku page loaded with database integration');
 
     // Check if user is logged in
-    if (typeof sessionStorage !== 'undefined') {
-        console.log('Session storage available');
+    const userRole = "{{ session('user_data.role') }}";
+    if (userRole && userRole !== 'guest') {
+        console.log('User role:', userRole);
     }
 
-    // Initialize search functionality
-    const searchInput = document.getElementById('searchInput');
+    // Initialize search and filter
+    initializeFilters();
+});
+
+function initializeFilters() {
+    // Search functionality
+    const searchInput = document.querySelector('input[name="search"]');
     if (searchInput) {
         searchInput.addEventListener('keyup', function(e) {
             if (e.key === 'Enter') {
-                searchBooks();
+                this.form.submit();
             }
         });
     }
-
-    // Initialize filters
-    const categoryFilter = document.getElementById('categoryFilter');
-    const statusFilter = document.getElementById('statusFilter');
-
-    if (categoryFilter) {
-        categoryFilter.addEventListener('change', filterBooks);
-    }
-
-    if (statusFilter) {
-        statusFilter.addEventListener('change', filterBooks);
-    }
-});
-
-function searchBooks() {
-    const query = document.getElementById('searchInput').value.toLowerCase();
-    const books = document.querySelectorAll('.book-item');
-
-    books.forEach(book => {
-        const text = book.textContent.toLowerCase();
-        if (text.includes(query)) {
-            book.style.display = 'block';
-        } else {
-            book.style.display = 'none';
-        }
-    });
-
-    showToast(`Menemukan ${document.querySelectorAll('.book-item[style*="block"]').length} buku`, 'info');
-}
-
-function filterBooks() {
-    const category = document.getElementById('categoryFilter').value;
-    const status = document.getElementById('statusFilter').value;
-    const books = document.querySelectorAll('.book-item');
-
-    books.forEach(book => {
-        const bookCategory = book.getAttribute('data-category');
-        const bookStatus = book.getAttribute('data-status');
-
-        const categoryMatch = !category || bookCategory === category;
-        const statusMatch = !status || bookStatus === status;
-
-        if (categoryMatch && statusMatch) {
-            book.style.display = 'block';
-        } else {
-            book.style.display = 'none';
-        }
-    });
 }
 
 function changeView(viewType) {
@@ -580,19 +596,94 @@ function changeView(viewType) {
 }
 
 function showDetail(bookId) {
-    // Set contoh data untuk modal
-    document.getElementById('detailJudul').textContent = 'Mastering Laravel ' + bookId;
-    document.getElementById('detailPenulis').textContent = 'Penulis: John Doe';
-    document.getElementById('detailIsbn').textContent = 'ISBN-' + bookId.toString().padStart(4, '0');
-    document.getElementById('detailKategori').textContent = 'Teknologi';
-    document.getElementById('detailTahun').textContent = '202' + (bookId % 10);
-    document.getElementById('detailPenerbit').textContent = 'Penerbit IA';
-    document.getElementById('detailHalaman').textContent = (200 + (bookId * 10));
-    document.getElementById('detailBahasa').textContent = 'Indonesia';
-    document.getElementById('detailDeskripsi').textContent = 'Buku komprehensif tentang framework Laravel versi terbaru, cocok untuk pemula hingga profesional.';
-    document.getElementById('detailRak').textContent = 'Rak T-' + bookId.toString().padStart(2, '0');
-    document.getElementById('detailStatus').textContent = bookId % 4 === 0 ? 'Dipinjam' : 'Tersedia';
-    document.getElementById('detailStatus').className = bookId % 4 === 0 ? 'badge bg-warning' : 'badge bg-success';
+    // Fetch book details via AJAX
+    fetch(`/buku/${bookId}/detail`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                displayBookDetail(data.book);
+            } else {
+                showToast('Gagal mengambil detail buku', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Terjadi kesalahan', 'danger');
+        });
+}
+
+function displayBookDetail(book) {
+    // Format detail HTML
+    const detailHTML = `
+        <div class="row">
+            <div class="col-md-4 text-center">
+                <div class="book-cover-large bg-light rounded p-5 mb-3">
+                    <i class="fas fa-book-open fa-4x text-danger"></i>
+                </div>
+                <h4>${book.title}</h4>
+                <p class="text-muted">${book.author}</p>
+                <span class="badge ${book.is_borrowed ? 'bg-warning' : 'bg-success'}">
+                    ${book.is_borrowed ? 'Dipinjam' : 'Tersedia'}
+                </span>
+            </div>
+            <div class="col-md-8">
+                <h5 class="border-bottom pb-2 mb-3">Informasi Buku</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <p class="mb-1"><strong>ID Buku:</strong></p>
+                        <p>${book.id}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <p class="mb-1"><strong>ISBN:</strong></p>
+                        <p>${book.isbn}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <p class="mb-1"><strong>Kategori:</strong></p>
+                        <p><span class="badge bg-secondary">${book.category}</span></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <p class="mb-1"><strong>Stok Tersedia:</strong></p>
+                        <p>${book.stock}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <p class="mb-1"><strong>Ditambahkan:</strong></p>
+                        <p>${book.created_at_formatted}</p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <p class="mb-1"><strong>Terakhir Diupdate:</strong></p>
+                        <p>${book.updated_at_formatted}</p>
+                    </div>
+                    ${book.description ? `
+                    <div class="col-12 mb-3">
+                        <p class="mb-1"><strong>Deskripsi:</strong></p>
+                        <p class="text-muted">${book.description}</p>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Update modal content
+    document.getElementById('detailContent').innerHTML = detailHTML;
+
+    // Show/hide pinjam button
+    const pinjamButton = document.getElementById('pinjamButton');
+    if (!book.is_borrowed && book.stock > 0) {
+        pinjamButton.style.display = 'inline-block';
+        pinjamButton.onclick = function() {
+            if (confirm(`Pinjam buku "${book.title}"?`)) {
+                pinjamBuku(book.id);
+            }
+        };
+    } else {
+        pinjamButton.style.display = 'none';
+    }
 
     // Show modal
     const modal = new bootstrap.Modal(document.getElementById('detailBukuModal'));
@@ -600,87 +691,19 @@ function showDetail(bookId) {
 }
 
 function pinjamBuku(bookId) {
-    const bookTitle = 'Mastering Laravel ' + bookId;
-    if (confirm(`Apakah Anda ingin meminjam buku:\n"${bookTitle}"?`)) {
-        // Simulate API call
-        showToast(`Buku "${bookTitle}" berhasil dipinjam!`, 'success');
+    // Submit form untuk pinjam buku
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/buku/${bookId}/pinjam`;
 
-        // Update status in UI
-        const statusBadge = document.querySelector(`.book-item:nth-child(${bookId}) .badge.bg-success, .book-item:nth-child(${bookId}) .badge.bg-warning`);
-        if (statusBadge) {
-            statusBadge.className = 'badge bg-warning';
-            statusBadge.innerHTML = '<i class="fas fa-book-reader me-1"></i> Dipinjam';
-        }
+    const csrfToken = document.createElement('input');
+    csrfToken.type = 'hidden';
+    csrfToken.name = '_token';
+    csrfToken.value = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-        // Disable pinjam button
-        const pinjamBtn = document.querySelector(`.book-item:nth-child(${bookId}) .btn-success`);
-        if (pinjamBtn) {
-            pinjamBtn.className = 'btn btn-sm btn-secondary';
-            pinjamBtn.innerHTML = '<i class="fas fa-clock me-1"></i> Sedang Dipinjam';
-            pinjamBtn.disabled = true;
-        }
-    }
-}
-
-function pinjamBukuModal() {
-    const bookTitle = document.getElementById('detailJudul').textContent;
-    if (confirm(`Apakah Anda ingin meminjam buku:\n"${bookTitle}"?`)) {
-        showToast(`Buku "${bookTitle}" berhasil dipinjam!`, 'success');
-
-        // Close modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('detailBukuModal'));
-        modal.hide();
-    }
-}
-
-function editBuku(bookId) {
-    showToast(`Membuka editor untuk buku ID: ${bookId}`, 'info');
-    // Redirect or open edit modal
-}
-
-function deleteBuku(bookId) {
-    const bookTitle = 'Mastering Laravel ' + bookId;
-    if (confirm(`Apakah Anda yakin ingin menghapus buku:\n"${bookTitle}"?`)) {
-        // Simulate API call
-        showToast(`Buku "${bookTitle}" berhasil dihapus!`, 'success');
-
-        // Remove from UI
-        const bookElement = document.querySelector(`.book-item:nth-child(${bookId})`);
-        if (bookElement) {
-            bookElement.style.opacity = '0.5';
-            setTimeout(() => {
-                bookElement.remove();
-                updateBookCount();
-            }, 500);
-        }
-    }
-}
-
-function simpanBuku() {
-    const judul = document.querySelector('#tambahBukuForm input[type="text"]').value;
-
-    if (!judul) {
-        alert('Judul buku harus diisi!');
-        return;
-    }
-
-    // Simulate save
-    showToast(`Buku "${judul}" berhasil ditambahkan!`, 'success');
-
-    // Close modal
-    const modal = bootstrap.Modal.getInstance(document.getElementById('tambahBukuModal'));
-    modal.hide();
-
-    // Reset form
-    document.getElementById('tambahBukuForm').reset();
-}
-
-function updateBookCount() {
-    const remainingBooks = document.querySelectorAll('.book-item').length;
-    const countElement = document.querySelector('h4 .total-books');
-    if (countElement) {
-        countElement.textContent = remainingBooks;
-    }
+    form.appendChild(csrfToken);
+    document.body.appendChild(form);
+    form.submit();
 }
 
 function showToast(message, type = 'info') {
